@@ -1,0 +1,22 @@
+{
+  "name": "lunch-finder-bot",
+  "version": "1.0.0",
+  "description": "幫助上班族快速找到附近餐廳的 Line Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^7.5.2",
+    "axios": "^1.4.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.10.1",
+    "moment": "^2.29.4",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+} 
