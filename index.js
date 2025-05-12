@@ -98,8 +98,8 @@ async function handlePostback(client, event, profile, data) {
     
     case 'diningPurpose':
       const purpose = postbackData.get('purpose');
-      // 保存用戶的用餐目的
-      await saveUserData(profile.userId, profile.displayName, { diningPurpose: purpose });
+      // 保存用戶的用餐目的，並標記正在等待食物偏好
+      await saveUserData(profile.userId, profile.displayName, { diningPurpose: purpose, awaitingFoodPreference: true });
       
       // 回覆詢問用戶想吃什麼
       return client.replyMessage(event.replyToken, {

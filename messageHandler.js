@@ -14,6 +14,42 @@ async function handleText(client, event, profile) {
   // 獲取用戶數據
   const userData = await getUserData(userId);
   
+  // 優先處理：如果機器人剛詢問完用餐目的，正在等待食物偏好
+  if (userData && userData.diningPurpose && userData.awaitingFoodPreference) {
+    // 將用戶輸入視為食物偏好
+    await saveUserPreference(userId, text); 
+    // 清除等待標記，同時確保 diningPurpose 仍然存在 (雖然 saveUserPreference 通常只更新 foodPreference)
+    // 為了確保狀態一致，這裡也用 saveUserData 更新，並將 awaitingFoodPreference 設為 false
+    await saveUserData(userId, profile.displayName, { 
+      diningPurpose: userData.diningPurpose, // 保留已設置的用餐目的
+      foodPreference: text, // 明確也在此處設定 foodPreference
+      awaitingFoodPreference: false 
+    });
+
+    // 檢查是否已有位置信息
+    const freshUserData = await getUserData(userId); // 重新獲取包含最新 foodPreference 的數據
+    if (freshUserData && freshUserData.location) {
+      return startRestaurantSearch(client, event, profile, freshUserData.diningPurpose, freshUserData.foodPreference, freshUserData.location);
+    } else {
+      // 請求用戶分享位置
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `收到【${text}】！為了幫您找到附近的餐廳，請分享您的目前位置。`,
+        quickReply: {
+          items: [
+            {
+              type: 'action',
+              action: {
+                type: 'location',
+                label: '分享位置'
+              }
+            }
+          ]
+        }
+      });
+    }
+  }
+  
   // 處理初次對話或簡單問候
   if (
     !userData || 
