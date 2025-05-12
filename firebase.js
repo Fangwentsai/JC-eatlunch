@@ -1,11 +1,32 @@
 const admin = require('firebase-admin');
 
 let db;
+let isInitialized = false;
 
 /**
  * 初始化 Firebase Admin SDK
  */
 function initializeFirebase() {
+  // 檢查是否已初始化
+  if (isInitialized) {
+    console.log('Firebase 已經初始化過，跳過重複初始化');
+    return { success: true, message: 'Firebase已經初始化' };
+  }
+
+  // 檢查是否有默認應用存在
+  try {
+    const existingApp = admin.app();
+    if (existingApp) {
+      console.log('發現已存在的Firebase應用實例，使用現有實例');
+      db = admin.firestore();
+      isInitialized = true;
+      return { success: true, message: '使用現有Firebase實例' };
+    }
+  } catch (e) {
+    // app()會在沒有初始化時拋出錯誤，這是正常的
+    console.log('沒有找到現有的Firebase應用實例，將創建新實例');
+  }
+
   try {
     console.log('開始初始化Firebase...');
 
@@ -58,6 +79,7 @@ function initializeFirebase() {
           credential: admin.credential.cert(serviceAccount)
         });
         console.log('使用環境變數初始化Firebase成功');
+        isInitialized = true;
       } catch (initError) {
         console.error('Firebase初始化失敗:', initError);
         
@@ -79,6 +101,7 @@ function initializeFirebase() {
           credential: admin.credential.cert(serviceAccount)
         });
         console.log('使用本地文件初始化Firebase成功');
+        isInitialized = true;
       } catch (localError) {
         console.error('本地文件初始化失敗:', localError);
         // 繼續嘗試其他初始化方法
@@ -88,6 +111,7 @@ function initializeFirebase() {
     else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       console.log('使用GOOGLE_APPLICATION_CREDENTIALS初始化');
       admin.initializeApp();
+      isInitialized = true;
     }
     // 如果上述方法都失敗，嘗試使用分離的環境變數
     else if (process.env.FIREBASE_PROJECT_ID && 
@@ -110,6 +134,7 @@ function initializeFirebase() {
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         }),
       });
+      isInitialized = true;
     }
     else {
       throw new Error('找不到有效的Firebase憑證設置');
@@ -118,6 +143,7 @@ function initializeFirebase() {
     // 如果成功初始化
     db = admin.firestore();
     console.log('Firebase 初始化成功');
+    isInitialized = true;
     return { success: true, message: 'Firebase初始化成功' };
   } catch (error) {
     console.error('Firebase 初始化失敗:', error);
@@ -283,9 +309,18 @@ async function getUserData(userId) {
 // 導出測試Firebase連接的函數
 async function testFirebaseConnection() {
   try {
-    const initResult = initializeFirebase();
-    if (!initResult.success) {
-      return initResult;
+    // 如果已經初始化過，直接進行連接測試
+    if (isInitialized || admin.apps.length > 0) {
+      console.log('Firebase 已初始化，直接進行連接測試');
+      if (!db) {
+        db = admin.firestore();
+      }
+    } else {
+      // 未初始化，進行初始化
+      const initResult = initializeFirebase();
+      if (!initResult.success) {
+        return initResult;
+      }
     }
     
     // 嘗試獲取一個不存在的文檔，測試連接是否成功
