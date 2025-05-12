@@ -12,7 +12,7 @@ try {
 require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
-const { initializeFirebase, saveUserData, saveUserPreference, saveUserChoice, testFirebaseConnection } = require('./firebase');
+const { initializeFirebase, saveUserData, saveUserPreference, saveUserChoice, testFirebaseConnection, testWriteData } = require('./firebase');
 const { handleText, handleLocation } = require('./messageHandler');
 
 // LINE Bot SDK 配置
@@ -135,6 +135,21 @@ app.get('/test-firebase', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '測試Firebase連接時發生錯誤',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// 添加Firebase數據寫入測試路由
+app.get('/test-firebase-write', async (req, res) => {
+  try {
+    const result = await testWriteData();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '測試Firebase寫入數據時發生錯誤',
       error: error.message,
       stack: error.stack
     });

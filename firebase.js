@@ -379,11 +379,66 @@ async function testFirebaseConnection() {
   }
 }
 
+// 用於測試寫入數據的函數
+async function testWriteData() {
+  try {
+    if (!isInitialized) {
+      const initResult = initializeFirebase();
+      if (!initResult.success) {
+        return {
+          success: false,
+          message: '無法初始化Firebase',
+          error: initResult.message
+        };
+      }
+    }
+    
+    // 生成隨機ID以避免衝突
+    const testId = `test_${Date.now()}`;
+    console.log(`嘗試寫入測試文檔，ID: ${testId}`);
+    
+    // 寫入測試數據
+    const testRef = db.collection('_test_connection').doc(testId);
+    await testRef.set({
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      testData: '連接測試',
+      environment: process.env.RENDER ? 'RENDER' : 'LOCAL'
+    });
+    
+    // 讀回剛才寫入的數據
+    const docSnapshot = await testRef.get();
+    
+    if (docSnapshot.exists) {
+      console.log('測試數據寫入成功並驗證:', docSnapshot.data());
+      return { 
+        success: true, 
+        message: '成功寫入和讀取測試數據', 
+        data: docSnapshot.data(),
+        documentId: testId
+      };
+    } else {
+      return {
+        success: false,
+        message: '寫入成功但無法讀取數據'
+      };
+    }
+  } catch (error) {
+    console.error('測試數據寫入失敗:', error);
+    return {
+      success: false,
+      message: '測試數據寫入失敗',
+      error: error.message,
+      stack: error.stack
+    };
+  }
+}
+
 module.exports = {
   initializeFirebase,
   saveUserData,
   saveUserPreference,
   saveUserChoice,
   getUserData,
-  testFirebaseConnection
+  testFirebaseConnection,
+  testWriteData
 }; 
