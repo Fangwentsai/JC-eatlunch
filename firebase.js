@@ -75,13 +75,33 @@ function initializeFirebase() {
       // 確保私鑰格式正確
       if (serviceAccount.private_key) {
         console.log('原始私鑰長度:', serviceAccount.private_key.length);
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-        console.log('處理後私鑰長度:', serviceAccount.private_key.length);
         
-        // 檢查私鑰格式
-        if (!serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
-          console.log('警告：私鑰可能缺少標準開頭標記');
+        // 處理可能的轉義問題
+        if (typeof serviceAccount.private_key === 'string') {
+          // 檢查是否已經包含正確的開始和結束標記
+          if (!serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
+            console.log('私鑰不包含標準開始標記，嘗試修復格式');
+            // 嘗試移除可能的轉義字符並添加標記
+            serviceAccount.private_key = serviceAccount.private_key
+              .replace(/\\n/g, '\n')
+              .replace(/\\"/g, '"');
+              
+            // 如果還是沒有標準標記，嘗試添加
+            if (!serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
+              console.log('嘗試添加私鑰標準標記');
+              serviceAccount.private_key = `-----BEGIN PRIVATE KEY-----\n${serviceAccount.private_key}\n-----END PRIVATE KEY-----`;
+            }
+          } else {
+            // 已經有正確的標記，僅處理可能的轉義字符
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+          }
+          
+          console.log('處理後私鑰長度:', serviceAccount.private_key.length);
+        } else {
+          console.log('警告: 私鑰不是字符串格式');
         }
+      } else {
+        console.log('警告: 服務賬號中沒有找到private_key字段');
       }
       
       // 初始化Firebase
