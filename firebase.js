@@ -1,5 +1,16 @@
 const admin = require('firebase-admin');
 
+// 嘗試禁用OpenSSL FIPS模式，這可以修復一些解碼器問題
+try {
+  process.env.NODE_OPTIONS = process.env.NODE_OPTIONS || '';
+  if (!process.env.NODE_OPTIONS.includes('--openssl-legacy-provider')) {
+    process.env.NODE_OPTIONS += ' --openssl-legacy-provider';
+    console.log('已設置OpenSSL傳統提供者模式');
+  }
+} catch (e) {
+  console.log('設置OpenSSL配置失敗:', e.message);
+}
+
 let db;
 let isInitialized = false;
 
@@ -309,6 +320,35 @@ async function getUserData(userId) {
 // 導出測試Firebase連接的函數
 async function testFirebaseConnection() {
   try {
+    // 輸出環境診斷信息
+    console.log('=========== 診斷信息開始 ===========');
+    console.log('Node.js版本:', process.version);
+    console.log('平台:', process.platform, process.arch);
+    
+    // 嘗試獲取OpenSSL版本
+    try {
+      const crypto = require('crypto');
+      console.log('OpenSSL版本:', crypto.constants.OPENSSL_VERSION_TEXT);
+    } catch (e) {
+      console.log('獲取OpenSSL版本失敗:', e.message);
+    }
+    
+    // 檢查Firebase Admin SDK版本
+    try {
+      console.log('Firebase Admin版本:', require('firebase-admin/package.json').version);
+    } catch (e) {
+      console.log('獲取Firebase Admin版本失敗');
+    }
+    
+    console.log('環境變數檢查:');
+    console.log('- RENDER環境變數:', process.env.RENDER ? '已設置' : '未設置');
+    console.log('- FIREBASE_SERVICE_ACCOUNT長度:', 
+                process.env.FIREBASE_SERVICE_ACCOUNT ? 
+                process.env.FIREBASE_SERVICE_ACCOUNT.length : '未設置');
+    console.log('- GOOGLE_APPLICATION_CREDENTIALS:', 
+                process.env.GOOGLE_APPLICATION_CREDENTIALS || '未設置');
+    console.log('=========== 診斷信息結束 ===========');
+    
     // 如果已經初始化過，直接進行連接測試
     if (isInitialized || admin.apps.length > 0) {
       console.log('Firebase 已初始化，直接進行連接測試');

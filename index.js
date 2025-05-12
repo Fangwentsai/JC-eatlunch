@@ -1,3 +1,14 @@
+// 嘗試禁用OpenSSL FIPS模式，修復DECODER routines::unsupported錯誤
+try {
+  process.env.NODE_OPTIONS = process.env.NODE_OPTIONS || '';
+  if (!process.env.NODE_OPTIONS.includes('--openssl-legacy-provider')) {
+    process.env.NODE_OPTIONS += ' --openssl-legacy-provider';
+    console.log('已設置OpenSSL傳統提供者模式');
+  }
+} catch (e) {
+  console.log('設置OpenSSL配置失敗:', e.message);
+}
+
 require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
