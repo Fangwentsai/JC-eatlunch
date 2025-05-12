@@ -7,11 +7,27 @@ let db;
  */
 function initializeFirebase() {
   try {
+    // 處理私鑰中的換行符 - 方法1
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (privateKey && privateKey.includes('\\n')) {
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+    
+    // 備選方法2 - 通過JSON解析
+    if (process.env.FIREBASE_PRIVATE_KEY_JSON) {
+      try {
+        const keyData = JSON.parse(process.env.FIREBASE_PRIVATE_KEY_JSON);
+        privateKey = keyData.privateKey;
+      } catch (e) {
+        console.error('解析JSON私鑰失敗:', e);
+      }
+    }
+    
     // 使用環境變數進行初始化
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        privateKey: privateKey,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       }),
     });
@@ -20,6 +36,7 @@ function initializeFirebase() {
     console.log('Firebase 初始化成功');
   } catch (error) {
     console.error('Firebase 初始化失敗:', error);
+    throw error;
   }
 }
 
@@ -158,10 +175,30 @@ async function getUserData(userId) {
   }
 }
 
+// 導出測試Firebase連接的函數
+async function testFirebaseConnection() {
+  try {
+    // 嘗試獲取一個不存在的文檔，測試連接是否成功
+    const testRef = db.collection('test').doc('test');
+    await testRef.get();
+    console.log('Firebase 連接測試成功');
+    return { success: true, message: 'Firebase 連接成功' };
+  } catch (error) {
+    console.error('Firebase 連接測試失敗:', error);
+    return { 
+      success: false, 
+      message: 'Firebase 連接失敗', 
+      error: error.message,
+      stack: error.stack
+    };
+  }
+}
+
 module.exports = {
   initializeFirebase,
   saveUserData,
   saveUserPreference,
   saveUserChoice,
-  getUserData
+  getUserData,
+  testFirebaseConnection
 }; 

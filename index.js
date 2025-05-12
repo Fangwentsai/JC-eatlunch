@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
-const { initializeFirebase, saveUserData, saveUserPreference, saveUserChoice } = require('./firebase');
+const { initializeFirebase, saveUserData, saveUserPreference, saveUserChoice, testFirebaseConnection } = require('./firebase');
 const { handleText, handleLocation } = require('./messageHandler');
 
 // LINE Bot SDK 配置
@@ -114,6 +114,21 @@ async function handlePostback(client, event, profile, data) {
       });
   }
 }
+
+// 添加Firebase測試路由
+app.get('/test-firebase', async (req, res) => {
+  try {
+    const result = await testFirebaseConnection();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '測試Firebase連接時發生錯誤',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
 
 // 啟動 Express 服務器
 const PORT = process.env.PORT || 3000;
