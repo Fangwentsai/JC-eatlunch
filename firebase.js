@@ -7,50 +7,78 @@ let db;
  */
 function initializeFirebase() {
   try {
-    let credential;
+    console.log('開始初始化Firebase...');
     
-    // 嘗試使用完整的服務賬戶JSON
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    let serviceAccount;
+    
+    // 使用最直接的方式 - 檢查服務賬戶JSON文件
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // 如果配置了憑證文件路徑
+      console.log('使用GOOGLE_APPLICATION_CREDENTIALS環境變數初始化Firebase');
+      // 不需要額外操作，firebase-admin會自動載入
+      admin.initializeApp();
+    } 
+    else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      // 如果提供了完整的JSON服務賬戶
       try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        credential = admin.credential.cert(serviceAccount);
-        console.log('使用完整JSON服務賬戶初始化Firebase');
+        console.log('嘗試解析FIREBASE_SERVICE_ACCOUNT環境變數...');
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        console.log('成功解析服務賬戶JSON');
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount)
+        });
       } catch (e) {
         console.error('解析服務賬戶JSON失敗:', e);
+        throw e; // 重新拋出錯誤，因為這是關鍵錯誤
       }
     } 
-    
-    // 如果上面的方法失敗，嘗試使用單獨的環境變數
-    if (!credential) {
-      // 處理私鑰中的換行符 - 方法1
+    else {
+      // 最後嘗試使用分離的環境變數
+      console.log('使用分離的環境變數初始化Firebase...');
+      
+      // 檢查必要的環境變數是否存在
+      if (!process.env.FIREBASE_PROJECT_ID || 
+          !process.env.FIREBASE_PRIVATE_KEY || 
+          !process.env.FIREBASE_CLIENT_EMAIL) {
+        throw new Error('缺少必要的Firebase憑證環境變數');
+      }
+      
+      // 處理私鑰 - 直接取代所有可能的轉義字符
       let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-      if (privateKey && privateKey.includes('\\n')) {
+      console.log('原始私鑰長度:', privateKey.length);
+      
+      // 將轉義的換行符(\n)替換為實際換行符
+      if (privateKey.includes('\\n')) {
         privateKey = privateKey.replace(/\\n/g, '\n');
+        console.log('已處理換行符，處理後私鑰長度:', privateKey.length);
       }
       
-      // 備選方法2 - 通過JSON解析
-      if (process.env.FIREBASE_PRIVATE_KEY_JSON) {
-        try {
-          const keyData = JSON.parse(process.env.FIREBASE_PRIVATE_KEY_JSON);
-          privateKey = keyData.privateKey;
-        } catch (e) {
-          console.error('解析JSON私鑰失敗:', e);
-        }
+      // 檢查私鑰格式
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        console.error('私鑰格式不正確，缺少開始標記');
+        console.log('私鑰前100個字符:', privateKey.substring(0, 100));
       }
       
-      credential = admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        privateKey: privateKey,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      });
-      console.log('使用分離環境變數初始化Firebase');
+      if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+        console.error('私鑰格式不正確，缺少結束標記');
+      }
+      
+      // 初始化Firebase
+      try {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            privateKey: privateKey,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          }),
+        });
+      } catch (error) {
+        console.error('使用憑證初始化失敗:', error);
+        throw error;
+      }
     }
 
-    // 使用構建的憑證初始化
-    admin.initializeApp({
-      credential: credential
-    });
-
+    // 如果成功初始化
     db = admin.firestore();
     console.log('Firebase 初始化成功');
   } catch (error) {
