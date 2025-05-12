@@ -8,6 +8,11 @@
 .env.test
 .env.production
 
+# Firebase 憑證
+*firebase*.json
+*serviceAccount*.json
+Eat2Lunch_firebase.json
+
 # 日誌
 /logs
 *.log
