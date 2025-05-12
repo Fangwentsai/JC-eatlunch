@@ -154,18 +154,36 @@ function initializeFirebase() {
       let privateKey = process.env.FIREBASE_PRIVATE_KEY;
       console.log('原始私鑰長度:', privateKey.length);
       
-      // 將轉義的換行符(\n)替換為實際換行符
-      privateKey = privateKey.replace(/\\n/g, '\n');
-      console.log('處理後私鑰長度:', privateKey.length);
+      // 檢查私鑰格式
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        console.log('私鑰可能缺少BEGIN標記，嘗試添加標準格式');
+        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+      } else {
+        // 將轉義的換行符(\n)替換為實際換行符
+        privateKey = privateKey.replace(/\\n/g, '\n');
+      }
       
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          privateKey: privateKey,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        }),
-      });
-      isInitialized = true;
+      // 特別處理Render.com可能添加的額外引號
+      privateKey = privateKey.replace(/^["']|["']$/g, '');
+      
+      console.log('處理後私鑰長度:', privateKey.length);
+      console.log('私鑰開頭:', privateKey.substring(0, 30));
+      console.log('私鑰結尾:', privateKey.substring(privateKey.length - 30));
+      
+      try {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            privateKey: privateKey,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          }),
+        });
+        console.log('使用分離環境變數初始化成功');
+        isInitialized = true;
+      } catch (initError) {
+        console.error('使用分離環境變數初始化失敗:', initError);
+        throw initError;
+      }
     }
     else {
       throw new Error('找不到有效的Firebase憑證設置');
