@@ -4,7 +4,7 @@ const {
   getPlaceDetails, 
   calculateWalkingDistances 
 } = require('./googleApi');
-const { generateResponse, enhanceRestaurantDescription, analyzeUserPreference } = require('./openai');
+const { generateResponse, enhanceRestaurantDescription, analyzeUserPreference } = require('./gemini');
 
 // 處理文字消息
 async function handleText(client, event, profile) {

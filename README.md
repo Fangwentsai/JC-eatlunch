@@ -22,7 +22,7 @@
 - **API**：
   - Google Places API
   - Google Distance Matrix API
-  - OpenAI API (GPT-4o-mini)
+  - Google Gemini 2.5 Pro API
 - **資料庫**：Firebase Firestore
 
 ## 環境配置
@@ -55,14 +55,14 @@ LINE_CHANNEL_SECRET=你的Line頻道秘密
 # Google API 配置
 GOOGLE_MAPS_API_KEY=你的Google地圖API密鑰
 
+# Gemini AI 配置
+GEMINI_API_KEY=你的Gemini API密鑰
+GEMINI_MODEL=gemini-1.5-pro
+
 # Firebase 配置
 FIREBASE_PROJECT_ID=你的Firebase項目ID
 FIREBASE_PRIVATE_KEY="你的Firebase私鑰"
 FIREBASE_CLIENT_EMAIL=你的Firebase客戶端電子郵件
-
-# OpenAI 配置
-OPENAI_API_KEY=你的OpenAI API密鑰
-OPENAI_MODEL=gpt-4o-mini
 
 # 應用設置
 PORT=3000
@@ -84,11 +84,11 @@ PORT=3000
 2. 設置 Firestore 數據庫
 3. 創建服務帳戶並下載私鑰
 
-### 步驟 5：設置 OpenAI API
+### 步驟 5：設置 Gemini API
 
-1. 註冊 [OpenAI API](https://platform.openai.com/) 帳戶
+1. 註冊 [Google AI Studio](https://ai.google.dev/) 帳戶
 2. 創建 API 密鑰
-3. 確保您的帳戶有足夠的額度可以使用 GPT-4o-mini
+3. 確保您的帳戶可以使用 Gemini 1.5 Pro 模型
 
 ### 步驟 6：設置 LINE Bot
 
@@ -128,7 +128,7 @@ npm start
 
 ## AI 功能
 
-本 Bot 整合了 OpenAI 的 GPT-4o-mini，用於以下功能：
+本 Bot 整合了 Google Gemini 2.5 Pro，用於以下功能：
 
 1. **自然語言處理**：用戶可以用自然語言詢問餐廳推薦
 2. **餐廳描述增強**：AI 會根據餐廳信息和用戶偏好，生成有吸引力的餐廳描述
@@ -144,8 +144,8 @@ npm start
    - 每次選擇 10-12 家最優餐廳進行步行距離計算
    - 對於「高級商業聚餐」類型，不計算步行時間，直接按評分選擇推薦餐廳
 
-2. **OpenAI API 優化**：
-   - 使用較小的 GPT-4o-mini 模型，平衡性能和成本
+2. **Gemini API 優化**：
+   - 使用免費的 Gemini 1.5 Pro 模型，無需支付費用
    - 限制最大 token 數量，控制每次調用的成本
    - 只在必要時才調用 AI 生成描述和建議
 

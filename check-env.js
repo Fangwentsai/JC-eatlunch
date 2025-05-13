@@ -24,7 +24,7 @@ async function checkEnvironment() {
     { name: 'LINE_CHANNEL_ACCESS_TOKEN', desc: 'Line 頻道訪問令牌' },
     { name: 'LINE_CHANNEL_SECRET', desc: 'Line 頻道秘密' },
     { name: 'GOOGLE_MAPS_API_KEY', desc: 'Google Maps API 密鑰' },
-    { name: 'OPENAI_API_KEY', desc: 'OpenAI API 密鑰' }
+    { name: 'GEMINI_API_KEY', desc: 'Gemini AI API 密鑰' }
   ];
   
   let allGood = true;
