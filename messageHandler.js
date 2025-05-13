@@ -10,13 +10,50 @@ const { generateResponse, enhanceRestaurantDescription, analyzeUserPreference } 
 async function handleText(client, event, profile) {
   const { text } = event.message;
   const userId = profile.userId;
-
-  // 提取食物關鍵字
-  const foodKeyword = extractFoodKeyword(text);
-
+  
+  // 檢查是否是問候語
+  const greetings = ['hi', 'hello', '你好', '您好', '嗨', '哈囉', 'hey', '嘿', '早安', '午安', '晚安'];
+  const isGreeting = greetings.some(greeting => 
+    text.toLowerCase().includes(greeting.toLowerCase())
+  );
+  
   // 獲取用戶數據
   const userData = await getUserData(userId);
   
+  // 處理問候語或初次對話
+  if (isGreeting || !userData || !userData.diningPurpose) {
+    // 準備個性化問候語
+    const greeting = userData && userData.displayName 
+      ? `${userData.displayName}，您好！` 
+      : '您好！';
+
+    // 發送用餐目的選擇按鈕
+    return client.replyMessage(event.replyToken, {
+      type: 'template',
+      altText: '請選擇您的用餐目的',
+      template: {
+        type: 'buttons',
+        title: '上班吃什麼？',
+        text: `${greeting}請問今天的用餐目的是什麼呢？`,
+        actions: [
+          {
+            type: 'postback',
+            label: '🍱 小資族午餐',
+            data: 'action=diningPurpose&purpose=worker'
+          },
+          {
+            type: 'postback',
+            label: '🍽️ 高級商業聚餐',
+            data: 'action=diningPurpose&purpose=business'
+          }
+        ]
+      }
+    });
+  }
+  
+  // 提取食物關鍵字
+  const foodKeyword = extractFoodKeyword(text);
+
   // 優先處理：如果機器人剛詢問完用餐目的，正在等待食物偏好
   if (userData && userData.diningPurpose && userData.awaitingFoodPreference) {
     // 將提取的食物關鍵字視為食物偏好
@@ -52,47 +89,47 @@ async function handleText(client, event, profile) {
     }
   }
   
-  // 處理初次對話或簡單問候
-  if (
-    !userData || 
-    !userData.diningPurpose || 
-    text.toLowerCase().includes('hi') || 
-    text.toLowerCase().includes('hello') || 
-    text.includes('你好') || 
-    text.includes('您好') || 
-    text.includes('嗨') ||
-    text.includes('吃什麼') ||
-    text.includes('午餐') ||
-    text.includes('中餐')
-  ) {
-    // 準備個性化問候語
-    const greeting = userData && userData.displayName 
-      ? `${userData.displayName}，您好！` 
-      : '您好！';
+  // 處理初次對話或簡單問候 - 移除這個部分，因為已經在前面處理了
+  // if (
+  //   !userData || 
+  //   !userData.diningPurpose || 
+  //   text.toLowerCase().includes('hi') || 
+  //   text.toLowerCase().includes('hello') || 
+  //   text.includes('你好') || 
+  //   text.includes('您好') || 
+  //   text.includes('嗨') ||
+  //   text.includes('吃什麼') ||
+  //   text.includes('午餐') ||
+  //   text.includes('中餐')
+  // ) {
+  //   // 準備個性化問候語
+  //   const greeting = userData && userData.displayName 
+  //     ? `${userData.displayName}，您好！` 
+  //     : '您好！';
 
-    // 發送用餐目的選擇按鈕
-    return client.replyMessage(event.replyToken, {
-      type: 'template',
-      altText: '請選擇您的用餐目的',
-      template: {
-        type: 'buttons',
-        title: '上班吃什麼？',
-        text: `${greeting}請問今天的用餐目的是什麼呢？`,
-        actions: [
-          {
-            type: 'postback',
-            label: '🍱 小資族午餐',
-            data: 'action=diningPurpose&purpose=worker'
-          },
-          {
-            type: 'postback',
-            label: '🍽️ 高級商業聚餐',
-            data: 'action=diningPurpose&purpose=business'
-          }
-        ]
-      }
-    });
-  } 
+  //   // 發送用餐目的選擇按鈕
+  //   return client.replyMessage(event.replyToken, {
+  //     type: 'template',
+  //     altText: '請選擇您的用餐目的',
+  //     template: {
+  //       type: 'buttons',
+  //       title: '上班吃什麼？',
+  //       text: `${greeting}請問今天的用餐目的是什麼呢？`,
+  //       actions: [
+  //         {
+  //           type: 'postback',
+  //           label: '🍱 小資族午餐',
+  //           data: 'action=diningPurpose&purpose=worker'
+  //         },
+  //         {
+  //           type: 'postback',
+  //           label: '🍽️ 高級商業聚餐',
+  //           data: 'action=diningPurpose&purpose=business'
+  //         }
+  //       ]
+  //     }
+  //   });
+  // } 
   // 用戶已經選擇了用餐目的，但還沒有輸入料理偏好
   else if (userData.diningPurpose && !userData.foodPreference) {
     // 保存用戶的料理偏好
