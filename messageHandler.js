@@ -63,6 +63,11 @@ async function handleText(client, event, profile) {
     text.includes('午餐') ||
     text.includes('中餐')
   ) {
+    // 準備個性化問候語
+    const greeting = userData && userData.displayName 
+      ? `${userData.displayName}，您好！` 
+      : '您好！';
+
     // 發送用餐目的選擇按鈕
     return client.replyMessage(event.replyToken, {
       type: 'template',
@@ -70,7 +75,7 @@ async function handleText(client, event, profile) {
       template: {
         type: 'buttons',
         title: '上班吃什麼？',
-        text: '請問今天的用餐目的是什麼呢？',
+        text: `${greeting}請問今天的用餐目的是什麼呢？`,
         actions: [
           {
             type: 'postback',
@@ -202,6 +207,11 @@ async function handleLocation(client, event, profile) {
   
   // 如果用戶尚未選擇用餐目的，請求用戶選擇
   if (!userData || !userData.diningPurpose) {
+    // 準備個性化問候語
+    const greeting = userData && userData.displayName 
+      ? `${userData.displayName}，您好！` 
+      : '您好！';
+      
     // 發送用餐目的選擇按鈕
     return client.replyMessage(event.replyToken, {
       type: 'template',
@@ -209,7 +219,7 @@ async function handleLocation(client, event, profile) {
       template: {
         type: 'buttons',
         title: '上班吃什麼？',
-        text: '請問今天的用餐目的是什麼呢？',
+        text: `${greeting}請問今天的用餐目的是什麼呢？`,
         actions: [
           {
             type: 'postback',
@@ -227,9 +237,13 @@ async function handleLocation(client, event, profile) {
   }
   
   // 如果用戶尚未輸入料理偏好，請求用戶輸入
+  // 使用用戶暱稱進行個性化問候
+  const nickname = userData && userData.displayName ? userData.displayName : '';
+  const greeting = nickname ? `${nickname}，` : '';
+  
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: '好的，我已記錄您的位置。今天想吃點什麼呢？例如：飯類、麵食、日式、泰式、或其他你想到的關鍵字？'
+    text: `好的，${greeting}我已記錄您的位置。今天想吃點什麼呢？例如：飯類、麵食、日式、泰式、或其他你想到的關鍵字？`
   });
 }
 

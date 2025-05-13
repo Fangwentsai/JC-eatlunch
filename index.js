@@ -112,10 +112,13 @@ async function handlePostback(client, event, profile, data) {
       // 保存用戶的用餐目的，並標記正在等待食物偏好
       await saveUserData(profile.userId, profile.displayName, { diningPurpose: purpose, awaitingFoodPreference: true });
       
+      // 使用用戶暱稱進行個性化問候
+      const nickname = profile.displayName ? `${profile.displayName}，` : '';
+      
       // 回覆詢問用戶想吃什麼
       return client.replyMessage(event.replyToken, {
         type: 'text',
-        text: `好的，是${purpose === 'worker' ? '🍱 我是社畜吃中餐' : '🍽️ 高級商業聚餐'}！那今天想吃點什麼呢？例如：飯類、麵食、日式、泰式、或其他你想到的關鍵字？`
+        text: `好的${nickname}是${purpose === 'worker' ? '🍱 我是社畜吃中餐' : '🍽️ 高級商業聚餐'}！那今天想吃點什麼呢？例如：飯類、麵食、日式、泰式、或其他你想到的關鍵字？`
       });
     
     default:
@@ -152,6 +155,44 @@ app.get('/test-firebase-write', async (req, res) => {
       message: '測試Firebase寫入數據時發生錯誤',
       error: error.message,
       stack: error.stack
+    });
+  }
+});
+
+// 添加Google Maps API測試路由
+app.get('/test-google-maps', async (req, res) => {
+  try {
+    const { searchNearbyPlaces } = require('./googleApi');
+    
+    // 測試座標 (台北101)
+    const lat = 25.033964;
+    const lng = 121.564468;
+    
+    // 測試搜索附近餐廳
+    const results = await searchNearbyPlaces(lat, lng, '餐廳', 1000, null, null);
+    
+    if (results && results.length > 0) {
+      res.json({
+        success: true,
+        message: '成功連接Google Maps API',
+        restaurantsFound: results.length,
+        firstRestaurant: results[0]
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'Google Maps API連接成功，但未找到餐廳',
+        apiKey: process.env.GOOGLE_MAPS_API_KEY ? '已設置' : '未設置',
+        apiKeyFirstChars: process.env.GOOGLE_MAPS_API_KEY ? `${process.env.GOOGLE_MAPS_API_KEY.substring(0, 5)}...` : '無'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '測試Google Maps API時發生錯誤',
+      error: error.message,
+      apiKey: process.env.GOOGLE_MAPS_API_KEY ? '已設置' : '未設置',
+      apiKeyFirstChars: process.env.GOOGLE_MAPS_API_KEY ? `${process.env.GOOGLE_MAPS_API_KEY.substring(0, 5)}...` : '無'
     });
   }
 });

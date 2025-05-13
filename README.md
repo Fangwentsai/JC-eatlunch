@@ -154,3 +154,47 @@ npm start
 - 請確保您的 Google Cloud 帳戶有足夠的配額用於 Places API 和 Distance Matrix API 調用
 - OpenAI API 是付費服務，請密切關注您的使用量和費用
 - LINE Messaging API 有每月訊息數量的限制，請注意使用頻率 
+
+## 常見問題解決
+
+### Google Maps API 相關問題
+
+如果您遇到餐廳搜尋返回虛構或不正確的數據，請檢查以下事項：
+
+1. **確認 API 密鑰設置**：
+   - 確保在 `.env` 文件中正確設置了 `GOOGLE_MAPS_API_KEY`
+   - 您可以訪問 `/test-google-maps` 路由來測試 API 連接
+
+2. **檢查 API 啟用狀態**：
+   - 登錄 [Google Cloud Console](https://console.cloud.google.com/)
+   - 確保以下 API 已啟用：
+     - Places API
+     - Distance Matrix API
+     - Maps JavaScript API
+     - Maps Static API
+
+3. **檢查 API 限制**：
+   - 確保您的 API 密鑰沒有過於嚴格的限制
+   - 檢查 API 配額是否已用盡
+
+### 個性化問候功能
+
+機器人現在支持使用用戶暱稱進行個性化問候。如果您發現個性化問候不起作用，請檢查：
+
+1. **LINE 權限**：確保您的 LINE Bot 有權限訪問用戶的個人資料
+2. **Firebase 連接**：確保 Firebase 連接正常，可以通過 `/test-firebase` 路由進行測試
+
+### 部署相關問題
+
+如果在部署過程中遇到問題，特別是與 Firebase 憑證相關的問題：
+
+1. **Firebase 私鑰格式**：
+   - 確保私鑰包含正確的換行符
+   - 在雲端環境中，可以使用 Base64 編碼的服務賬號 JSON
+   - 可以使用 `FIREBASE_SERVICE_ACCOUNT` 環境變數提供完整的服務賬號 JSON
+
+2. **OpenSSL 相關錯誤**：
+   - 如果遇到 "DECODER routines::unsupported" 錯誤，代碼已包含自動修復
+   - 如果自動修復失敗，請手動添加 `NODE_OPTIONS=--openssl-legacy-provider` 環境變數
+
+如需更多幫助，請參考相關服務的官方文檔或聯繫開發者。 
