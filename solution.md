@@ -19,6 +19,8 @@
 
 **測試結果**：我們已確認本地環境中的Google Maps API密鑰可以正常工作，使用相同的API密鑰和標準Place ID進行測試返回了正確的結果。這表明API密鑰本身是有效的，問題可能出在請求參數或部署環境的設置上。
 
+**已實施的修復**：我們已經修改了`googleApi.js`中的`getPlaceDetails`函數，簡化了fields參數，只保留基本必要字段，並添加了更詳細的錯誤處理和日誌。同時，在`messageHandler.js`中添加了更健壯的錯誤處理機制，確保即使某些餐廳詳情獲取失敗也能繼續處理其他餐廳。
+
 ## 解決步驟
 
 ### 修復Gemini模型錯誤
@@ -40,28 +42,35 @@
    ```
 
 ### 修復Google Maps API錯誤
-1. 檢查Google Cloud Console中的API密鑰設置
+1. 已實施的修改：
+   - 簡化了Place Details API的fields參數，只保留必要字段：
+     ```javascript
+     const fields = [
+       'name',
+       'formatted_address',
+       'geometry',
+       'rating',
+       'user_ratings_total',
+       'photos',
+       'vicinity'
+     ];
+     ```
+   - 添加了後備請求機制，當帶fields參數的請求失敗時，嘗試不帶fields參數再次請求
+   - 添加了更詳細的錯誤日誌，記錄完整的請求參數和響應
+   - 在`messageHandler.js`中添加了更健壯的錯誤處理，確保即使部分餐廳詳情獲取失敗也能繼續處理
+
+2. 檢查Google Cloud Console中的API密鑰設置
    - 確認已啟用Places API、Distance Matrix API等所需API
    - 確認API密鑰沒有IP地址或HTTP引用者限制，或已將部署服務器的IP添加到白名單
    - 檢查是否有API使用限制（地區、請求類型等）
-
-2. 檢查API請求參數
-   - 確保placeId參數有效（我們已確認標準placeId可以正常工作）
-   - 確保所有必需參數都已正確提供
-   - 檢查`getPlaceDetails`函數中的fields參數格式是否正確
-
-3. 調試建議
-   - 在`getPlaceDetails`函數中添加更詳細的錯誤日誌，記錄完整的請求URL和響應
-   - 嘗試使用更簡單的fields參數進行測試，例如只請求`name,formatted_address`
-   - 檢查placeId的來源，確保它是有效的
 
 ## 部署後驗證
 1. 更新部署環境中的環境變數後重新部署應用
 2. 使用日誌監控系統檢查是否還有相同的錯誤
 3. 進行簡單的功能測試，確認Gemini API和Google Maps API是否正常工作
 4. 如果Google Maps API錯誤持續，考慮實施以下臨時解決方案：
-   - 添加重試機制
-   - 添加錯誤處理，在API返回錯誤時提供備用響應
+   - 添加重試機制（已實施）
+   - 添加錯誤處理，在API返回錯誤時提供備用響應（已實施）
    - 考慮使用不同的Google Maps API密鑰
 
 ## 長期解決方案
