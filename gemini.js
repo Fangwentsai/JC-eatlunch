@@ -49,15 +49,20 @@ async function generateResponse(prompt, history = []) {
 async function enhanceRestaurantDescription(restaurantInfo, userPreference) {
   try {
     const prompt = `
-你是一個專業的餐廳推薦專家。根據以下餐廳信息，生成一個簡短、吸引人的描述（限制在100字以內）：
+你是一個專業的餐廳推薦專家。根據以下餐廳信息，生成一個簡短、吸引人的描述（限制在80字以內）：
 
 餐廳名稱：${restaurantInfo.name}
 評分：${restaurantInfo.rating || '無評分'}
 地址：${restaurantInfo.vicinity || restaurantInfo.formatted_address}
 步行時間：${restaurantInfo.walkingDuration ? Math.round(restaurantInfo.walkingDuration / 60) + '分鐘' : '未提供'}
-提供外送：${restaurantInfo.serves_delivery ? '是' : '否'}
 
-使用者喜好：${userPreference}
+用戶搜尋的關鍵字：${userPreference}
+
+請特別注意：
+1. 描述必須與餐廳的實際類型和名稱相符
+2. 如果餐廳名稱明確指出是某種類型（如日式、港式等），請確保描述符合該類型
+3. 如果用戶搜尋的是特定料理類型（如港點、拉麵等），請評估該餐廳是否真的提供這類料理
+4. 如果餐廳可能不符合用戶搜尋的料理類型，請誠實指出，並提及它可能提供的實際料理類型
 
 請提供一個簡短的、吸引人的描述，重點強調餐廳的特色和與用戶喜好的匹配度。不要重複已有的數據，而是提供更多價值。
 回覆必須是中文，風格要活潑但專業。

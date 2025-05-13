@@ -10,6 +10,7 @@ async function searchNearbyPlaces(lat, lng, keyword, radius = 1500, minPriceLeve
       type: 'restaurant',
       keyword: keyword,
       opennow: true,
+      language: 'zh-TW', // 指定返回繁體中文結果
       key: process.env.GOOGLE_MAPS_API_KEY
     };
     
@@ -28,7 +29,35 @@ async function searchNearbyPlaces(lat, lng, keyword, radius = 1500, minPriceLeve
     });
     
     if (response.data.status === 'OK') {
-      return response.data.results;
+      // 過濾結果，確保餐廳名稱或類型中包含關鍵字，提高相關性
+      const results = response.data.results;
+      
+      // 檢查是否有足夠的結果
+      if (results.length >= 5) {
+        // 嘗試找出更相關的結果
+        const relevantResults = results.filter(place => {
+          // 檢查餐廳名稱是否包含關鍵字
+          if (place.name.toLowerCase().includes(keyword.toLowerCase())) {
+            return true;
+          }
+          
+          // 檢查餐廳類型是否與關鍵字相關
+          if (place.types && place.types.some(type => 
+            type.includes(keyword.toLowerCase()) || 
+            type.includes('restaurant') || 
+            type.includes('food')
+          )) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        // 如果找到足夠的相關結果，則返回這些結果，否則返回原始結果
+        return relevantResults.length >= 3 ? relevantResults : results;
+      }
+      
+      return results;
     } else {
       console.error('Google Places API 返回錯誤:', response.data.status);
       return [];
@@ -63,12 +92,14 @@ async function getPlaceDetails(placeId) {
     const params = {
       place_id: placeId,
       fields: fields.join(','), // 組合成逗號分隔字符串
+      language: 'zh-TW', // 指定返回繁體中文結果
       key: process.env.GOOGLE_MAPS_API_KEY
     };
     
     console.log('Google Place Details API 請求參數:', {
       place_id: params.place_id,
       fields: params.fields,
+      language: params.language,
       key: params.key ? '已設置' : '未設置'
     });
     
@@ -84,7 +115,8 @@ async function getPlaceDetails(placeId) {
       console.error('錯誤詳情:', response.data.error_message || '無錯誤詳情');
       console.error('請求參數:', {
         place_id: params.place_id,
-        fields: params.fields
+        fields: params.fields,
+        language: params.language
       });
       
       // 嘗試不帶fields參數再次請求
@@ -92,6 +124,7 @@ async function getPlaceDetails(placeId) {
         console.log('嘗試不帶fields參數再次請求...');
         const fallbackParams = {
           place_id: placeId,
+          language: 'zh-TW',
           key: process.env.GOOGLE_MAPS_API_KEY
         };
         
@@ -141,6 +174,7 @@ async function calculateWalkingDistances(userLocation, places) {
       origins: origin,
       destinations: destinations,
       mode: 'walking',
+      language: 'zh-TW', // 指定返回繁體中文結果
       key: process.env.GOOGLE_MAPS_API_KEY
     };
     
