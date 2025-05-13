@@ -131,8 +131,13 @@ async function analyzeUserPreference(userData) {
       suggestion: analysisResult.recommendation
     };
   } catch (error) {
-    console.error('分析用戶偏好錯誤:', error);
-    return { preferences: [], suggestion: null };
+    console.error('分析用戶初步意圖錯誤:', error);
+    // 如果AI分析出錯，返回一個適合引導用戶選擇的結果
+    return {
+      intent: "request_dining_purpose_selection",
+      diningPurpose: null,
+      foodPreference: null
+    };
   }
 }
 

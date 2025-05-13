@@ -4,37 +4,88 @@ const {
   getPlaceDetails, 
   calculateWalkingDistances 
 } = require('./googleApi');
-const { generateResponse, enhanceRestaurantDescription, analyzeUserPreference } = require('./gemini');
+const { 
+  generateResponse, 
+  enhanceRestaurantDescription, 
+  analyzeUserPreference,
+  clarifyInitialIntent
+} = require('./gemini');
 
 // 處理文字消息
 async function handleText(client, event, profile) {
   const { text } = event.message;
   const userId = profile.userId;
-  
-  // 檢查是否是問候語
-  const greetings = ['hi', 'hello', '你好', '您好', '嗨', '哈囉', 'hey', '嘿', '早安', '午安', '晚安'];
-  const isGreeting = greetings.some(greeting => 
-    text.toLowerCase().includes(greeting.toLowerCase())
-  );
-  
-  // 獲取用戶數據
   const userData = await getUserData(userId);
-  
-  // 處理問候語或初次對話
-  if (isGreeting || !userData || !userData.diningPurpose) {
-    // 準備個性化問候語
-    const greeting = userData && userData.displayName 
-      ? `${userData.displayName}，您好！` 
-      : '您好！';
 
-    // 發送用餐目的選擇按鈕
+  // ====== 新的 AI 驅動的初始流程 ======
+  if (!userData || !userData.diningPurpose) {
+    // 使用 AI 分析初步意圖
+    const initialIntentResult = await clarifyInitialIntent(text);
+
+    if (initialIntentResult) {
+      const { intent, diningPurpose, foodPreference } = initialIntentResult;
+      const nickname = profile.displayName ? `${profile.displayName}，` : '';
+
+      switch (intent) {
+        case 'greeting':
+          const greetingMsg = nickname ? `${nickname}您好！` : '您好！';
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: `${greetingMsg} 今天想吃點什麼呢？您可以直接告訴我您的用餐類型（像是"簡單午餐"或"跟客戶吃飯"），或想吃的料理喔！`
+          });
+
+        case 'set_dining_purpose':
+          if (diningPurpose) {
+            await saveUserData(userId, profile.displayName, { diningPurpose: diningPurpose, awaitingFoodPreference: true });
+            return client.replyMessage(event.replyToken, {
+              type: 'text',
+              text: `好的${nickname}了解您想找${diningPurpose === 'worker' ? '個「小資族午餐」' : '個「高級商業聚餐」'}的地方！那今天想吃點什麼料理呢？（例如：飯類、麵食、日式、泰式等）`
+            });
+          }
+          break; // 如果 purpose 為 null，則跳到 fallback
+
+        case 'set_dining_purpose_and_food_preference':
+          if (diningPurpose && foodPreference) {
+            await saveUserData(userId, profile.displayName, { diningPurpose: diningPurpose, foodPreference: foodPreference, awaitingFoodPreference: false });
+            const freshUserData = await getUserData(userId); // 需要重新獲取一次以包含剛保存的 foodPreference
+            if (freshUserData && freshUserData.location) {
+              return startRestaurantSearch(client, event, profile, diningPurpose, foodPreference, freshUserData.location);
+            } else {
+              return client.replyMessage(event.replyToken, {
+                type: 'text',
+                text: `收到！您想找${diningPurpose === 'worker' ? '「小資族午餐」' : '「高級商業聚餐」'}，並且想吃【${foodPreference}】對吧？為了幫您找到附近的餐廳，請分享您的目前位置。`,
+                quickReply: {
+                  items: [
+                    {
+                      type: 'action',
+                      action: {
+                        type: 'location',
+                        label: '分享位置'
+                      }
+                    }
+                  ]
+                }
+              });
+            }
+          }
+          break; // 如果 purpose 或 preference 為 null，則跳到 fallback
+
+        case 'request_dining_purpose_selection':
+        default:
+          // 如果AI不確定，或明確要求選擇，則跳到 fallback 顯示按鈕
+          break;
+      }
+    }
+
+    // Fallback: 如果 AI 分析失敗、不確定或需要選擇，則顯示按鈕
+    const fallbackGreeting = userData && userData.displayName ? `${userData.displayName}，您好！` : '您好！';
     return client.replyMessage(event.replyToken, {
       type: 'template',
       altText: '請選擇您的用餐目的',
       template: {
         type: 'buttons',
         title: '上班吃什麼？',
-        text: `${greeting}請問今天的用餐目的是什麼呢？`,
+        text: `${fallbackGreeting} 請問今天的用餐目的是什麼呢？或者可以直接告訴我想吃的料理類型喔！`,
         actions: [
           {
             type: 'postback',
@@ -50,27 +101,24 @@ async function handleText(client, event, profile) {
       }
     });
   }
-  
-  // 提取食物關鍵字
-  const foodKeyword = extractFoodKeyword(text);
+  // ====== 結束新的 AI 驅動的初始流程 ======
 
-  // 優先處理：如果機器人剛詢問完用餐目的，正在等待食物偏好
+  // ----- 原有的後續流程（用戶已設定 diningPurpose） -----
+  const foodKeyword = extractFoodKeyword(text); // 提取食物關鍵字
+
+  // 情況：已有用餐目的，正在等待食物偏好
   if (userData && userData.diningPurpose && userData.awaitingFoodPreference) {
-    // 將提取的食物關鍵字視為食物偏好
-    await saveUserPreference(userId, foodKeyword); 
-    // 清除等待標記，同時確保 diningPurpose 仍然存在
+    await saveUserPreference(userId, foodKeyword);
     await saveUserData(userId, profile.displayName, { 
-      diningPurpose: userData.diningPurpose,
-      foodPreference: foodKeyword,
-      awaitingFoodPreference: false 
+      diningPurpose: userData.diningPurpose, // 確保保留
+      foodPreference: foodKeyword, 
+      awaitingFoodPreference: false // 清除等待標記
     });
 
-    // 檢查是否已有位置信息
-    const freshUserData = await getUserData(userId);
+    const freshUserData = await getUserData(userId); // 重新獲取數據
     if (freshUserData && freshUserData.location) {
-      return startRestaurantSearch(client, event, profile, freshUserData.diningPurpose, freshUserData.foodPreference, freshUserData.location);
+      return startRestaurantSearch(client, event, profile, freshUserData.diningPurpose, foodKeyword, freshUserData.location);
     } else {
-      // 請求用戶分享位置
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: `收到【${foodKeyword}】！為了幫您找到附近的餐廳，請分享您的目前位置。`,
@@ -87,120 +135,40 @@ async function handleText(client, event, profile) {
         }
       });
     }
-  }
-  
-  // 處理初次對話或簡單問候 - 移除這個部分，因為已經在前面處理了
-  // if (
-  //   !userData || 
-  //   !userData.diningPurpose || 
-  //   text.toLowerCase().includes('hi') || 
-  //   text.toLowerCase().includes('hello') || 
-  //   text.includes('你好') || 
-  //   text.includes('您好') || 
-  //   text.includes('嗨') ||
-  //   text.includes('吃什麼') ||
-  //   text.includes('午餐') ||
-  //   text.includes('中餐')
-  // ) {
-  //   // 準備個性化問候語
-  //   const greeting = userData && userData.displayName 
-  //     ? `${userData.displayName}，您好！` 
-  //     : '您好！';
-
-  //   // 發送用餐目的選擇按鈕
-  //   return client.replyMessage(event.replyToken, {
-  //     type: 'template',
-  //     altText: '請選擇您的用餐目的',
-  //     template: {
-  //       type: 'buttons',
-  //       title: '上班吃什麼？',
-  //       text: `${greeting}請問今天的用餐目的是什麼呢？`,
-  //       actions: [
-  //         {
-  //           type: 'postback',
-  //           label: '🍱 小資族午餐',
-  //           data: 'action=diningPurpose&purpose=worker'
-  //         },
-  //         {
-  //           type: 'postback',
-  //           label: '🍽️ 高級商業聚餐',
-  //           data: 'action=diningPurpose&purpose=business'
-  //         }
-  //       ]
-  //     }
-  //   });
-  // } 
-  // 用戶已經選擇了用餐目的，但還沒有輸入料理偏好
-  else if (userData.diningPurpose && !userData.foodPreference) {
-    // 保存用戶的料理偏好
-    await saveUserPreference(userId, foodKeyword);
-    
-    // 如果用戶已經分享了位置，可以直接開始搜尋餐廳
-    if (userData.location) {
-      return startRestaurantSearch(client, event, profile, userData.diningPurpose, foodKeyword, userData.location);
-    }
-    
-    // 否則請求用戶分享位置
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: `收到！為了幫您找到附近的${foodKeyword}，請分享您的目前位置。`,
-      quickReply: {
-        items: [
-          {
-            type: 'action',
-            action: {
-              type: 'location',
-              label: '分享位置'
-            }
-          }
-        ]
-      }
-    });
   } 
-  // 用戶已經有完整資料，檢查是否在詢問特定餐廳或想要推薦
+  // 情況：用戶想獲取推薦 (例如輸入「推薦」)
   else if (text.includes('推薦') || text.includes('建議') || text.includes('你覺得')) {
     try {
-      // 分析用戶偏好歷史
       const preferenceAnalysis = await analyzeUserPreference(userData);
-      
       let aiPrompt = `使用者想要關於餐廳的推薦。他問的問題是: "${text}"。`;
-      
       if (preferenceAnalysis.preferences.length > 0) {
         aiPrompt += `根據他過去的搜尋紀錄，他可能喜歡這些類型的料理: ${preferenceAnalysis.preferences.join(', ')}。`;
       }
-      
       if (preferenceAnalysis.suggestion) {
         aiPrompt += `你可以考慮推薦他: ${preferenceAnalysis.suggestion}，或類似的食物。`;
       }
-      
       aiPrompt += '請給予簡短、活潑且有用的餐飲建議。回覆必須是中文，不要超過100字。';
-      
-      // 使用 OpenAI 產生回覆
       const aiResponse = await generateResponse(aiPrompt, []);
-      
-      // 使用 AI 回覆
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: aiResponse
       });
     } catch (error) {
       console.error('AI 推薦生成錯誤:', error);
-      // 發生錯誤時，提供一個通用回覆
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: '很高興為您提供推薦！請告訴我您今天想吃什麼類型的料理呢？'
       });
     }
-  }
-  // 用戶已經有完整資料，這是一個新的搜尋
+  } 
+  // 情況：用戶已有完整資料，進行新的搜尋
   else {
-    // 更新用戶的料理偏好
     await saveUserPreference(userId, foodKeyword);
+    const updatedUserData = await getUserData(userId); // 獲取更新後的偏好
     
-    if (userData.location) {
-      return startRestaurantSearch(client, event, profile, userData.diningPurpose, foodKeyword, userData.location);
+    if (updatedUserData.location) {
+      return startRestaurantSearch(client, event, profile, updatedUserData.diningPurpose, foodKeyword, updatedUserData.location);
     } else {
-      // 請求用戶分享位置
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: `收到！為了幫您找到附近的${foodKeyword}，請分享您的目前位置。`,
