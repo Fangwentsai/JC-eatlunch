@@ -450,7 +450,7 @@ async function startRestaurantSearch(client, event, profile, diningPurpose, food
 請在回覆中明確提及這些餐廳的名稱，並根據它們的特點給出建議。
 
 重要排版要求：
-1. 每介紹完一間餐廳後換行，使用兩個換行符分隔不同餐廳的介紹
+1. 每介紹完一間餐廳後只換一行，不要空行
 2. 整體排版要清晰易讀，避免長段落
 3. 總字數控制在150字以內
 
@@ -491,7 +491,7 @@ function createRestaurantCarousel(enhancedRestaurants, diningPurpose, userPrefer
     // 取得評分和評論
     const rating = restaurant.rating ? `⭐ ${restaurant.rating} (${restaurant.user_ratings_total}則評論)` : '尚未有評分';
     
-    // 步行時間 (只有社畜才顯示)
+    // 步行時間 (只有小資族才顯示)
     let walkingInfo = '';
     if (diningPurpose === 'worker' && restaurant.walkingDuration) {
       const minutes = Math.round(restaurant.walkingDuration / 60);
