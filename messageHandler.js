@@ -11,30 +11,32 @@ async function handleText(client, event, profile) {
   const { text } = event.message;
   const userId = profile.userId;
 
+  // 提取食物關鍵字
+  const foodKeyword = extractFoodKeyword(text);
+
   // 獲取用戶數據
   const userData = await getUserData(userId);
   
   // 優先處理：如果機器人剛詢問完用餐目的，正在等待食物偏好
   if (userData && userData.diningPurpose && userData.awaitingFoodPreference) {
-    // 將用戶輸入視為食物偏好
-    await saveUserPreference(userId, text); 
-    // 清除等待標記，同時確保 diningPurpose 仍然存在 (雖然 saveUserPreference 通常只更新 foodPreference)
-    // 為了確保狀態一致，這裡也用 saveUserData 更新，並將 awaitingFoodPreference 設為 false
+    // 將提取的食物關鍵字視為食物偏好
+    await saveUserPreference(userId, foodKeyword); 
+    // 清除等待標記，同時確保 diningPurpose 仍然存在
     await saveUserData(userId, profile.displayName, { 
-      diningPurpose: userData.diningPurpose, // 保留已設置的用餐目的
-      foodPreference: text, // 明確也在此處設定 foodPreference
+      diningPurpose: userData.diningPurpose,
+      foodPreference: foodKeyword,
       awaitingFoodPreference: false 
     });
 
     // 檢查是否已有位置信息
-    const freshUserData = await getUserData(userId); // 重新獲取包含最新 foodPreference 的數據
+    const freshUserData = await getUserData(userId);
     if (freshUserData && freshUserData.location) {
       return startRestaurantSearch(client, event, profile, freshUserData.diningPurpose, freshUserData.foodPreference, freshUserData.location);
     } else {
       // 請求用戶分享位置
       return client.replyMessage(event.replyToken, {
         type: 'text',
-        text: `收到【${text}】！為了幫您找到附近的餐廳，請分享您的目前位置。`,
+        text: `收到【${foodKeyword}】！為了幫您找到附近的餐廳，請分享您的目前位置。`,
         quickReply: {
           items: [
             {
@@ -79,7 +81,7 @@ async function handleText(client, event, profile) {
         actions: [
           {
             type: 'postback',
-            label: '🍱 我是社畜吃中餐',
+            label: '🍱 小資族午餐',
             data: 'action=diningPurpose&purpose=worker'
           },
           {
@@ -94,17 +96,17 @@ async function handleText(client, event, profile) {
   // 用戶已經選擇了用餐目的，但還沒有輸入料理偏好
   else if (userData.diningPurpose && !userData.foodPreference) {
     // 保存用戶的料理偏好
-    await saveUserPreference(userId, text);
+    await saveUserPreference(userId, foodKeyword);
     
     // 如果用戶已經分享了位置，可以直接開始搜尋餐廳
     if (userData.location) {
-      return startRestaurantSearch(client, event, profile, userData.diningPurpose, text, userData.location);
+      return startRestaurantSearch(client, event, profile, userData.diningPurpose, foodKeyword, userData.location);
     }
     
     // 否則請求用戶分享位置
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: `收到！為了幫您找到附近的${text}，請分享您的目前位置。`,
+      text: `收到！為了幫您找到附近的${foodKeyword}，請分享您的目前位置。`,
       quickReply: {
         items: [
           {
@@ -156,15 +158,15 @@ async function handleText(client, event, profile) {
   // 用戶已經有完整資料，這是一個新的搜尋
   else {
     // 更新用戶的料理偏好
-    await saveUserPreference(userId, text);
+    await saveUserPreference(userId, foodKeyword);
     
     if (userData.location) {
-      return startRestaurantSearch(client, event, profile, userData.diningPurpose, text, userData.location);
+      return startRestaurantSearch(client, event, profile, userData.diningPurpose, foodKeyword, userData.location);
     } else {
       // 請求用戶分享位置
       return client.replyMessage(event.replyToken, {
         type: 'text',
-        text: `收到！為了幫您找到附近的${text}，請分享您的目前位置。`,
+        text: `收到！為了幫您找到附近的${foodKeyword}，請分享您的目前位置。`,
         quickReply: {
           items: [
             {
@@ -223,7 +225,7 @@ async function handleLocation(client, event, profile) {
         actions: [
           {
             type: 'postback',
-            label: '🍱 我是社畜吃中餐',
+            label: '🍱 小資族午餐',
             data: 'action=diningPurpose&purpose=worker'
           },
           {
@@ -258,7 +260,7 @@ async function startRestaurantSearch(client, event, profile, diningPurpose, food
     
     // 設置價格級別
     const priceLevel = diningPurpose === 'worker' 
-      ? { min: 1, max: 2 }   // 小社畜價格範圍
+      ? { min: 1, max: 2 }   // 小資族價格範圍
       : { min: 3, max: 4 };  // 商業聚餐價格範圍
     
     // 步驟1：用 Google Places API 搜尋附近餐廳
@@ -283,7 +285,7 @@ async function startRestaurantSearch(client, event, profile, diningPurpose, food
     let selectedRestaurants = [];
     
     // 根據用餐目的處理餐廳推薦
-    if (diningPurpose === 'worker') { // 小社畜吃中餐
+    if (diningPurpose === 'worker') { // 小資族午餐
       // 步驟2：初步篩選餐廳 (選取評分較高的前10-12家)
       const initialFiltered = nearbyPlaces
         .sort((a, b) => (b.rating || 0) - (a.rating || 0))
@@ -403,10 +405,12 @@ async function startRestaurantSearch(client, event, profile, diningPurpose, food
     // 發送 Carousel 給用戶
     await client.pushMessage(profile.userId, carouselContents);
     
-    // 發送 AI 建議訊息
+    // 發送 AI 建議訊息，使用實際找到的餐廳資訊
+    const restaurantNames = enhancedRestaurants.map(r => r.name).join('、');
     const aiPrompt = `
-我剛剛幫用戶搜尋了${foodPreference}的餐廳，找到了${enhancedRestaurants.length}家餐廳。
-請給用戶一些關於這些餐廳的簡短推薦和建議，讓他們更好地選擇。
+我剛剛幫用戶搜尋了${foodPreference}的餐廳，找到了這些餐廳：${restaurantNames}。
+請根據這些實際找到的餐廳，給用戶一些具體的推薦和建議，讓他們更好地選擇。
+請在回覆中明確提及這些餐廳的名稱，並根據它們的特點給出建議。
 建議應該簡短、活潑、友善，不要超過100字，必須使用中文。
 `;
 
@@ -513,6 +517,29 @@ function createRestaurantCarousel(enhancedRestaurants, diningPurpose, userPrefer
       columns: columns
     }
   };
+}
+
+// 從用戶輸入中提取食物關鍵字
+function extractFoodKeyword(text) {
+  // 常見的表達想吃某種食物的前綴
+  const prefixes = [
+    '我想吃', '想吃', '我要吃', '要吃', '我喜歡', '喜歡吃', 
+    '我愛', '愛吃', '我想來', '想來', '我要來', '要來',
+    '我想點', '想點', '我要點', '要點', '我想要', '想要'
+  ];
+  
+  // 檢查是否包含這些前綴，如果有則提取後面的關鍵字
+  for (const prefix of prefixes) {
+    if (text.includes(prefix)) {
+      const keyword = text.split(prefix)[1].trim();
+      if (keyword) {
+        return keyword;
+      }
+    }
+  }
+  
+  // 如果沒有找到前綴，則返回原文本
+  return text;
 }
 
 module.exports = {
