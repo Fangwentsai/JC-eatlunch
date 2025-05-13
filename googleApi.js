@@ -42,24 +42,35 @@ async function searchNearbyPlaces(lat, lng, keyword, radius = 1500, minPriceLeve
 // 獲取餐廳詳細資訊的函數
 async function getPlaceDetails(placeId) {
   try {
+    // 檢查placeId是否有效
+    if (!placeId) {
+      console.error('Google Place Details API 錯誤: placeId為空');
+      return {};
+    }
+
+    // 定義需要獲取的字段 - 簡化字段列表，只保留基本必要字段
+    const fields = [
+      'name',
+      'formatted_address',
+      'geometry',
+      'rating',
+      'user_ratings_total',
+      'photos',
+      'vicinity'
+    ];
+
+    // 構建參數
     const params = {
       place_id: placeId,
-      fields: [
-        'name',
-        'formatted_address',
-        'vicinity',
-        'geometry',
-        'rating',
-        'user_ratings_total',
-        'photos',
-        'reviews',
-        'website',
-        'url',
-        'price_level',
-        'serves_delivery'
-      ].join(','), // 組合成逗號分隔字符串
+      fields: fields.join(','), // 組合成逗號分隔字符串
       key: process.env.GOOGLE_MAPS_API_KEY
     };
+    
+    console.log('Google Place Details API 請求參數:', {
+      place_id: params.place_id,
+      fields: params.fields,
+      key: params.key ? '已設置' : '未設置'
+    });
     
     // 呼叫 Google Places API Place Details
     const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
@@ -70,10 +81,41 @@ async function getPlaceDetails(placeId) {
       return response.data.result;
     } else {
       console.error('Google Place Details API 返回錯誤:', response.data.status);
+      console.error('錯誤詳情:', response.data.error_message || '無錯誤詳情');
+      console.error('請求參數:', {
+        place_id: params.place_id,
+        fields: params.fields
+      });
+      
+      // 嘗試不帶fields參數再次請求
+      if (response.data.status === 'INVALID_REQUEST') {
+        console.log('嘗試不帶fields參數再次請求...');
+        const fallbackParams = {
+          place_id: placeId,
+          key: process.env.GOOGLE_MAPS_API_KEY
+        };
+        
+        try {
+          const fallbackResponse = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+            params: fallbackParams
+          });
+          
+          if (fallbackResponse.data.status === 'OK') {
+            console.log('不帶fields參數的請求成功');
+            return fallbackResponse.data.result;
+          } else {
+            console.error('不帶fields參數的請求也失敗:', fallbackResponse.data.status);
+          }
+        } catch (fallbackError) {
+          console.error('執行後備請求時出錯:', fallbackError.message);
+        }
+      }
+      
       return {};
     }
   } catch (error) {
-    console.error('獲取餐廳詳細資訊錯誤:', error);
+    console.error('獲取餐廳詳細資訊錯誤:', error.message);
+    console.error('錯誤堆疊:', error.stack);
     return {};
   }
 }

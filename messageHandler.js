@@ -332,11 +332,44 @@ async function startRestaurantSearch(client, event, profile, diningPurpose, food
     }
     
     // 步驟5：獲取每家餐廳的詳細信息
-    const restaurantDetails = await Promise.all(
-      selectedRestaurants.map(restaurant => 
-        getPlaceDetails(restaurant.place_id)
-      )
-    );
+    console.log(`開始獲取${selectedRestaurants.length}家餐廳的詳細信息`);
+    const restaurantDetails = [];
+    
+    for (const restaurant of selectedRestaurants) {
+      try {
+        console.log(`正在獲取餐廳詳情，place_id: ${restaurant.place_id}`);
+        const details = await getPlaceDetails(restaurant.place_id);
+        
+        // 檢查返回的詳情是否為空對象
+        if (Object.keys(details).length === 0) {
+          console.warn(`餐廳詳情為空，使用基本信息代替，place_id: ${restaurant.place_id}`);
+          // 使用搜索結果中的基本信息
+          restaurantDetails.push({
+            name: restaurant.name,
+            vicinity: restaurant.vicinity,
+            formatted_address: restaurant.vicinity,
+            geometry: restaurant.geometry,
+            rating: restaurant.rating,
+            user_ratings_total: restaurant.user_ratings_total,
+            photos: restaurant.photos
+          });
+        } else {
+          restaurantDetails.push(details);
+        }
+      } catch (error) {
+        console.error(`獲取餐廳詳情失敗，place_id: ${restaurant.place_id}`, error);
+        // 使用搜索結果中的基本信息
+        restaurantDetails.push({
+          name: restaurant.name,
+          vicinity: restaurant.vicinity,
+          formatted_address: restaurant.vicinity,
+          geometry: restaurant.geometry,
+          rating: restaurant.rating,
+          user_ratings_total: restaurant.user_ratings_total,
+          photos: restaurant.photos
+        });
+      }
+    }
     
     // 步驟6：為每家餐廳添加 AI 生成的描述
     const enhancedRestaurants = [];
@@ -347,13 +380,14 @@ async function startRestaurantSearch(client, event, profile, diningPurpose, food
         ...selectedRestaurants[i]
       };
       
-      // 使用 OpenAI 為餐廳添加描述
+      // 使用 Gemini 為餐廳添加描述
       try {
+        console.log(`正在生成餐廳描述，餐廳名稱: ${restaurant.name}`);
         const aiDescription = await enhanceRestaurantDescription(restaurant, foodPreference);
         restaurant.aiDescription = aiDescription;
       } catch (error) {
-        console.error('餐廳描述生成錯誤:', error);
-        restaurant.aiDescription = '';
+        console.error(`餐廳描述生成錯誤，餐廳名稱: ${restaurant.name}`, error);
+        restaurant.aiDescription = `推薦您品嚐這家${foodPreference}餐廳！`;
       }
       
       enhancedRestaurants.push(restaurant);
