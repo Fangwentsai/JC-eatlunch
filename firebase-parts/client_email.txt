@@ -1,1 +1,1 @@
-firebase-adminsdk-fbsvc@jc-eatlunch.iam.gserviceaccount.com
+YOUR_CLIENT_EMAIL@YOUR_PROJECT_ID.iam.gserviceaccount.com

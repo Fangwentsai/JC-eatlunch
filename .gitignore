@@ -13,6 +13,11 @@
 *serviceAccount*.json
 Eat2Lunch_firebase.json
 firebase-base64.txt
+service-account-direct.js
+firebase-parts/private_key.txt
+firebase-parts/private_key_for_env.txt
+firebase-parts/client_email.txt
+firebase-parts/project_id.txt
 
 # 日誌
 /logs
